@@ -1,1 +1,19 @@
 .env
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python compiled files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Frontend dependencies and build output
+node_modules/
+dist/

@@ -2,6 +2,20 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL?.replace(/\/+$/, "") ??
   "http://127.0.0.1:8000";
 
+export const TOKEN_KEY = "featureflow.access-token";
+
+export function getStoredToken(): string | null {
+  return sessionStorage.getItem(TOKEN_KEY);
+}
+
+export function storeToken(token: string): void {
+  sessionStorage.setItem(TOKEN_KEY, token);
+}
+
+export function clearStoredToken(): void {
+  sessionStorage.removeItem(TOKEN_KEY);
+}
+
 export interface User {
   id: number;
   name: string;
@@ -34,10 +48,10 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(
+export async function apiRequest<T>(
   path: string,
   options: RequestInit = {},
-  token?: string,
+  token: string | null = getStoredToken(),
 ): Promise<T> {
   const headers = new Headers(options.headers);
   headers.set("Accept", "application/json");
@@ -58,27 +72,44 @@ async function request<T>(
   }
 
   if (!response.ok) {
-    let message = "The request could not be completed. Please try again.";
+    let message = getStatusMessage(response.status);
     try {
       const body: unknown = await response.json();
-      message = getErrorMessage(body, response.status);
+      message = getErrorMessage(body, response.status) || message;
     } catch {
-      if (response.status === 401) {
-        message = "Your session has expired. Please sign in again.";
-      }
+      // Some proxies return an empty or non-JSON error body.
+    }
+    if (response.status === 401 && token) {
+      window.dispatchEvent(new Event("featureflow:unauthorized"));
     }
     throw new ApiError(message, response.status);
   }
 
+  if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
+}
+
+function getStatusMessage(status: number): string {
+  switch (status) {
+    case 401:
+      return "Your session has expired. Please sign in again.";
+    case 403:
+      return "You do not have permission to perform this action.";
+    case 404:
+      return "The requested resource could not be found.";
+    case 409:
+      return "This change conflicts with existing data.";
+    case 422:
+      return "Please check the information you entered.";
+    default:
+      return "The request could not be completed. Please try again.";
+  }
 }
 
 function getErrorMessage(body: unknown, status: number): string {
   if (typeof body === "object" && body !== null && "detail" in body) {
     const detail = body.detail;
     if (typeof detail === "string") {
-      if (status === 401) return "Invalid email or password.";
-      if (status === 409) return "An account with this email already exists.";
       return detail;
     }
     if (Array.isArray(detail)) {
@@ -92,25 +123,23 @@ function getErrorMessage(body: unknown, status: number): string {
         .join(" ");
     }
   }
-  if (status === 401) return "Your session has expired. Please sign in again.";
-  if (status === 409) return "An account with this email already exists.";
-  return "The request could not be completed. Please try again.";
+  return getStatusMessage(status);
 }
 
 export const api = {
   register(payload: RegistrationPayload) {
-    return request<User>("/auth/register", {
+    return apiRequest<User>("/auth/register", {
       method: "POST",
       body: JSON.stringify(payload),
-    });
+    }, null);
   },
   login(payload: LoginPayload) {
-    return request<TokenResponse>("/auth/login", {
+    return apiRequest<TokenResponse>("/auth/login", {
       method: "POST",
       body: JSON.stringify(payload),
-    });
+    }, null);
   },
   me(token: string) {
-    return request<User>("/auth/me", { method: "GET" }, token);
+    return apiRequest<User>("/auth/me", { method: "GET" }, token);
   },
 };

@@ -7,9 +7,14 @@ import {
   useMemo,
   useState,
 } from "react";
-import { api, type LoginPayload, type User } from "../api/client";
-
-const TOKEN_KEY = "featureflow.access-token";
+import {
+  api,
+  clearStoredToken,
+  getStoredToken as readStoredToken,
+  storeToken,
+  type LoginPayload,
+  type User,
+} from "../api/client";
 
 interface AuthContextValue {
   user: User | null;
@@ -25,12 +30,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const signOut = useCallback(() => {
-    sessionStorage.removeItem(TOKEN_KEY);
+    clearStoredToken();
     setUser(null);
   }, []);
 
   useEffect(() => {
-    const token = sessionStorage.getItem(TOKEN_KEY);
+    const token = readStoredToken();
     if (!token) {
       setLoading(false);
       return;
@@ -54,14 +59,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [signOut]);
 
+  useEffect(() => {
+    window.addEventListener("featureflow:unauthorized", signOut);
+    return () => window.removeEventListener("featureflow:unauthorized", signOut);
+  }, [signOut]);
+
   const signIn = useCallback(async (credentials: LoginPayload) => {
     const { access_token: token } = await api.login(credentials);
-    sessionStorage.setItem(TOKEN_KEY, token);
+    storeToken(token);
     try {
       const currentUser = await api.me(token);
       setUser(currentUser);
     } catch (error) {
-      sessionStorage.removeItem(TOKEN_KEY);
+      clearStoredToken();
       throw error;
     }
   }, []);
@@ -78,8 +88,4 @@ export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
   if (!context) throw new Error("useAuth must be used inside AuthProvider");
   return context;
-}
-
-export function getStoredToken(): string | null {
-  return sessionStorage.getItem(TOKEN_KEY);
 }

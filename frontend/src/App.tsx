@@ -8,6 +8,10 @@ import {
 } from "react-router-dom";
 import { ApiError, api } from "./api/client";
 import { useAuth } from "./auth/AuthContext";
+import Dashboard from "./pages/Dashboard";
+import Environments from "./pages/Environments";
+import EnvironmentDetails from "./pages/EnvironmentDetails";
+import Flags from "./pages/Flags";
 
 function Brand() {
   return (
@@ -38,11 +42,10 @@ function AuthLayout({
             <div className="eyebrow"><span className="status-dot" /> CONTROL THE RELEASE</div>
             <h1>Ship confidently.<br /><em>Change everything.</em></h1>
             <p>One place to manage feature flags, target experiences, and move at the speed of your team.</p>
-            <div className="preview-card" aria-hidden="true">
-              <div className="preview-header"><span>Environment overview</span><span className="preview-live"><i /> LIVE</span></div>
-              <div className="preview-row"><div className="flag-icon purple">N</div><div className="preview-info"><strong>new_dashboard</strong><small>Development · Updated just now</small></div><span className="toggle on"><i /></span></div>
-              <div className="preview-row"><div className="flag-icon blue">C</div><div className="preview-info"><strong>checkout_v2</strong><small>Production · Updated 2h ago</small></div><span className="toggle"><i /></span></div>
-              <div className="preview-footer"><span><b>12</b> active flags</span><span><b>3</b> environments</span><span><b>99.9%</b> uptime</span></div>
+            <div className="preview-card auth-feature-list">
+              <div className="preview-header"><span>Release controls</span><span className="preview-live">FEATUREFLOW</span></div>
+              <div className="preview-row"><div className="flag-icon purple">01</div><div className="preview-info"><strong>Environment-scoped flags</strong><small>Configure behavior for each environment</small></div></div>
+              <div className="preview-row"><div className="flag-icon blue">02</div><div className="preview-info"><strong>One authenticated workspace</strong><small>Manage releases through the connected API</small></div></div>
             </div>
           </div>
           <div className="visual-bottom"><span>BUILT FOR TEAMS THAT SHIP</span><span>SECURE · RELIABLE · SIMPLE</span></div>
@@ -232,59 +235,16 @@ function LoadingScreen({ label }: { label: string }) {
   return <main className="loading-screen"><span className="spinner dark" />{label}</main>;
 }
 
-function DashboardPage() {
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
-
-  function handleLogout() {
-    signOut();
-    navigate("/login", { replace: true });
-  }
-
-  if (!user) return <Navigate to="/login" replace />;
-  const initials = user.name
-    .split(/\s+/)
-    .map((part) => part[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-
-  return (
-    <main className="dashboard">
-      <header className="dash-header">
-        <Brand />
-        <button className="logout-button" onClick={handleLogout}>Sign out <span aria-hidden="true">↗</span></button>
-      </header>
-      <section className="dash-content">
-        <div className="dash-breadcrumb"><span className="crumb-dot" /> ACCOUNT OVERVIEW</div>
-        <div className="dash-title-row">
-          <div><h1>Welcome, {user.name.split(" ")[0]}</h1><p>You’re signed in and ready to manage your workspace.</p></div>
-          <div className="user-avatar" aria-hidden="true">{initials}</div>
-        </div>
-        <section className="account-card" aria-labelledby="account-title">
-          <div className="card-heading"><div><div className="form-kicker">YOUR PROFILE</div><h2 id="account-title">Account details</h2></div><span className="active-badge"><i /> Active</span></div>
-          <dl className="profile-list">
-            <div><dt>Full name</dt><dd>{user.name}</dd></div>
-            <div><dt>Email address</dt><dd>{user.email}</dd></div>
-            <div><dt>Account role</dt><dd><span className="role-pill">{user.role}</span></dd></div>
-            <div><dt>Account status</dt><dd>{user.is_active ? "Active" : "Inactive"}</dd></div>
-            <div><dt>User ID</dt><dd className="id-value">#{user.id}</dd></div>
-          </dl>
-        </section>
-        <div className="coming-soon"><span className="coming-icon">✳</span><div><strong>Your feature workspace is next</strong><p>Authentication is connected. Flag and environment management can be added here next.</p></div><span className="coming-tag">COMING UP</span></div>
-      </section>
-      <footer className="dash-footer"><span>FEATUREFLOW · FEATURE FLAG MANAGEMENT</span><span>YOUR WORKSPACE, SECURED</span></footer>
-    </main>
-  );
-}
-
 function App() {
   const { user, loading } = useAuth();
   return (
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : loading ? <LoadingScreen label="Loading..." /> : <LoginPage />} />
       <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : loading ? <LoadingScreen label="Loading..." /> : <RegisterPage />} />
-      <Route path="/dashboard" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/flags" element={<ProtectedRoute><Flags /></ProtectedRoute>} />
+      <Route path="/environments" element={<ProtectedRoute><Environments /></ProtectedRoute>} />
+      <Route path="/environments/:environmentId" element={<ProtectedRoute><EnvironmentDetails /></ProtectedRoute>} />
       <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
