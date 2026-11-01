@@ -163,36 +163,39 @@ class ManagementApiTests(unittest.TestCase):
                     )
                     self.assertEqual(response.status_code, 401, response.text)
 
-    def test_regular_user_is_forbidden_on_all_management_routes(self) -> None:
-        environment_id = self._create_environment()
-        flag = self.client.post(
+    def test_regular_user_can_access_all_management_routes(self) -> None:
+        environment = self.client.post(
+            "/api/v1/environments",
+            headers=self.user_headers,
+            json={"name": "user-managed", "description": "Created by user"},
+        )
+        self.assertEqual(environment.status_code, 201, environment.text)
+        environment_id = environment.json()["id"]
+
+        created_flag = self.client.post(
             "/api/v1/flags",
-            headers=self.headers,
+            headers=self.user_headers,
             json={
-                "key": "authorization_test",
+                "key": "user_managed_flag",
                 "type": "boolean",
-                "default_value": False,
+                "default_value": True,
                 "environment_id": environment_id,
             },
         )
-        self.assertEqual(flag.status_code, 201, flag.text)
-        flag_id = flag.json()["id"]
+        self.assertEqual(created_flag.status_code, 201, created_flag.text)
+        flag_id = created_flag.json()["id"]
+
         requests = [
-            ("post", "/api/v1/flags", {"json": {
-                "key": "forbidden_create",
-                "type": "boolean",
-                "default_value": False,
-                "environment_id": environment_id,
-            }}),
             ("get", "/api/v1/flags", {}),
             ("get", f"/api/v1/flags/{flag_id}", {}),
             ("put", f"/api/v1/flags/{flag_id}", {"json": {"enabled": False}}),
-            ("delete", f"/api/v1/flags/{flag_id}", {}),
-            ("post", "/api/v1/environments", {"json": {"name": "forbidden"}}),
             ("get", "/api/v1/environments", {}),
             ("get", f"/api/v1/environments/{environment_id}", {}),
-            ("put", f"/api/v1/environments/{environment_id}", {"json": {"description": "forbidden"}}),
-            ("delete", f"/api/v1/environments/{environment_id}", {}),
+            (
+                "put",
+                f"/api/v1/environments/{environment_id}",
+                {"json": {"description": "Updated by user"}},
+            ),
             ("get", f"/api/v1/environments/{environment_id}/flags", {}),
         ]
         for method, path, kwargs in requests:
@@ -200,7 +203,21 @@ class ManagementApiTests(unittest.TestCase):
                 response = getattr(self.client, method)(
                     path, headers=self.user_headers, **kwargs
                 )
-                self.assertEqual(response.status_code, 403, response.text)
+                self.assertIn(response.status_code, (200, 201), response.text)
+
+        self.assertEqual(
+            self.client.delete(
+                f"/api/v1/flags/{flag_id}", headers=self.user_headers
+            ).status_code,
+            204,
+        )
+        self.assertEqual(
+            self.client.delete(
+                f"/api/v1/environments/{environment_id}",
+                headers=self.user_headers,
+            ).status_code,
+            204,
+        )
 
     def test_admin_can_access_management_routes_and_registration_stays_user_only(
         self,

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
-from app.auth_dependencies import require_admin
+from app.auth_dependencies import get_current_user
 from app.database.connection import get_db
 from app.models.flag import Flag
 from app.models.user import User
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/v1/flags", tags=["Feature Flag Management"])
 def create_flag(
     payload: FlagCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ) -> Flag:
     return flag_service.create_flag(db, payload, current_user.id)
 
@@ -24,7 +24,7 @@ def create_flag(
 @router.get("", response_model=list[FlagResponse])
 def list_flags(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ) -> list[Flag]:
     return flag_service.list_flags(db)
 
@@ -33,7 +33,7 @@ def list_flags(
 def get_flag(
     flag_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ) -> Flag:
     return flag_service.get_flag(db, flag_id)
 
@@ -43,7 +43,7 @@ def update_flag(
     flag_id: int,
     payload: FlagUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ) -> Flag:
     return flag_service.update_flag(db, flag_id, payload)
 
@@ -52,7 +52,7 @@ def update_flag(
 def delete_flag(
     flag_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ) -> Response:
     flag_service.delete_flag(db, flag_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

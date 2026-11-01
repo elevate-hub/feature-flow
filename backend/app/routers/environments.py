@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
-from app.auth_dependencies import require_admin
+from app.auth_dependencies import get_current_user
 from app.database.connection import get_db
 from app.models.environment import Environment
 from app.models.flag import Flag
@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api/v1/environments", tags=["Environments"])
 def create_environment(
     payload: EnvironmentCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ) -> Environment:
     return environment_service.create_environment(db, payload)
 
@@ -32,7 +32,7 @@ def create_environment(
 @router.get("", response_model=list[EnvironmentResponse])
 def list_environments(
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ) -> list[Environment]:
     return environment_service.list_environments(db)
 
@@ -41,7 +41,7 @@ def list_environments(
 def get_environment(
     environment_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ) -> Environment:
     return environment_service.get_environment(db, environment_id)
 
@@ -51,7 +51,7 @@ def update_environment(
     environment_id: int,
     payload: EnvironmentUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ) -> Environment:
     return environment_service.update_environment(db, environment_id, payload)
 
@@ -60,7 +60,7 @@ def update_environment(
 def delete_environment(
     environment_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ) -> Response:
     environment_service.delete_environment(db, environment_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -70,6 +70,6 @@ def delete_environment(
 def list_environment_flags(
     environment_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_admin),
+    current_user: User = Depends(get_current_user),
 ) -> list[Flag]:
     return flag_service.list_environment_flags(db, environment_id)
