@@ -12,6 +12,11 @@ import Dashboard from "./pages/Dashboard";
 import Environments from "./pages/Environments";
 import EnvironmentDetails from "./pages/EnvironmentDetails";
 import Flags from "./pages/Flags";
+import FlagDetails from "./pages/FlagDetails";
+import UserGroups from "./pages/UserGroups";
+import TargetingRules from "./pages/TargetingRules";
+import Activity from "./pages/Activity";
+import Settings from "./pages/Settings";
 
 function Brand() {
   return (
@@ -225,9 +230,19 @@ function RegisterPage() {
 }
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
   if (loading) return <LoadingScreen label="Checking your session..." />;
   if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== "admin") {
+    return (
+      <main className="access-denied">
+        <Brand />
+        <h1>Administrator access required</h1>
+        <p>Your account is authenticated, but this workspace is restricted to administrators.</p>
+        <button className="button secondary" onClick={signOut}>Sign out</button>
+      </main>
+    );
+  }
   return <>{children}</>;
 }
 
@@ -243,8 +258,13 @@ function App() {
       <Route path="/register" element={user ? <Navigate to="/dashboard" replace /> : loading ? <LoadingScreen label="Loading..." /> : <RegisterPage />} />
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/flags" element={<ProtectedRoute><Flags /></ProtectedRoute>} />
+      <Route path="/flags/:flagId" element={<ProtectedRoute><FlagDetails /></ProtectedRoute>} />
       <Route path="/environments" element={<ProtectedRoute><Environments /></ProtectedRoute>} />
       <Route path="/environments/:environmentId" element={<ProtectedRoute><EnvironmentDetails /></ProtectedRoute>} />
+      <Route path="/targeting-rules" element={<ProtectedRoute><TargetingRules /></ProtectedRoute>} />
+      <Route path="/user-groups" element={<ProtectedRoute><UserGroups /></ProtectedRoute>} />
+      <Route path="/activity" element={<ProtectedRoute><Activity /></ProtectedRoute>} />
+      <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
       <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

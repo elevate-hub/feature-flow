@@ -120,6 +120,26 @@ class AuthenticationTests(unittest.TestCase):
         self.assertEqual(missing.status_code, 401)
         self.assertEqual(invalid.status_code, 401)
 
+    def test_frontend_origin_can_preflight_authenticated_api_requests(self) -> None:
+        response = self.client.options(
+            "/auth/me",
+            headers={
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": "GET",
+                "Access-Control-Request-Headers": "authorization",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.headers["access-control-allow-origin"],
+            "http://localhost:5173",
+        )
+        self.assertIn(
+            "authorization",
+            response.headers["access-control-allow-headers"].lower(),
+        )
+
     def test_expired_token_is_rejected(self) -> None:
         user_data = self.register()
         token = jwt.encode(

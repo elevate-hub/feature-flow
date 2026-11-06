@@ -21,6 +21,7 @@ def get_flag_value(
         flag_key=flag_key,
         environment_name=environment,
     )
+    db.commit()
 
     if result["reason"] == "FLAG_NOT_FOUND":
         raise HTTPException(

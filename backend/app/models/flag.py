@@ -4,9 +4,11 @@ from typing import Any
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -21,6 +23,10 @@ from app.database.base import Base
 class Flag(Base):
     __tablename__ = "flags"
     __table_args__ = (
+        CheckConstraint(
+            "rollout_percentage BETWEEN 0 AND 100",
+            name="ck_flags_rollout_percentage",
+        ),
         UniqueConstraint(
             "environment_id", "key", name="uq_flag_key_per_environment"
         ),
@@ -38,6 +44,9 @@ class Flag(Base):
     default_value: Mapped[Any] = mapped_column(JSONB, nullable=False)
     enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("true")
+    )
+    rollout_percentage: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default=text("0")
     )
     description: Mapped[str | None] = mapped_column(Text)
     owner_team: Mapped[str | None] = mapped_column(String(150))

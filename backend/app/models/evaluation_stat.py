@@ -39,5 +39,11 @@ class EvaluationStat(Base):
     evaluation_count: Mapped[int] = mapped_column(
         BigInteger, nullable=False, server_default=text("0")
     )
+    true_count: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, server_default=text("0")
+    )
+    false_count: Mapped[int] = mapped_column(
+        BigInteger, nullable=False, server_default=text("0")
+    )
     flag = relationship("Flag", back_populates="evaluation_stats")
     environment = relationship("Environment", back_populates="evaluation_stats")

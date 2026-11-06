@@ -1,5 +1,6 @@
 from app.models.audit_log import AuditLog
 from app.models.environment import Environment
+from app.models.external_user_group_membership import ExternalUserGroupMembership
 from app.models.evaluation_stat import EvaluationStat
 from app.models.flag import Flag
 from app.models.flag_version import FlagVersion
@@ -11,6 +12,7 @@ from app.models.user_group_membership import UserGroupMembership
 __all__ = [
     "AuditLog",
     "Environment",
+    "ExternalUserGroupMembership",
     "EvaluationStat",
     "Flag",
     "FlagVersion",

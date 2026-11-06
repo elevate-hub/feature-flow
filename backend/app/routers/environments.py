@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
-from app.auth_dependencies import get_current_user
+from app.auth_dependencies import get_current_user, require_admin
 from app.database.connection import get_db
 from app.models.environment import Environment
 from app.models.flag import Flag
@@ -15,7 +15,11 @@ from app.schemas.flags import FlagResponse
 from app.services import environment_service, flag_service
 
 
-router = APIRouter(prefix="/api/v1/environments", tags=["Environments"])
+router = APIRouter(
+    prefix="/api/v1/environments",
+    tags=["Environments"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 @router.post(
@@ -26,7 +30,7 @@ def create_environment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Environment:
-    return environment_service.create_environment(db, payload)
+    return environment_service.create_environment(db, payload, current_user.id)
 
 
 @router.get("", response_model=list[EnvironmentResponse])
@@ -53,7 +57,9 @@ def update_environment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Environment:
-    return environment_service.update_environment(db, environment_id, payload)
+    return environment_service.update_environment(
+        db, environment_id, payload, current_user.id
+    )
 
 
 @router.delete("/{environment_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -62,7 +68,7 @@ def delete_environment(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Response:
-    environment_service.delete_environment(db, environment_id)
+    environment_service.delete_environment(db, environment_id, current_user.id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

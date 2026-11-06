@@ -2,13 +2,18 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.models.audit_log import AuditLog
 from app.models.environment import Environment
+from app.models.evaluation_stat import EvaluationStat
 from app.models.flag import Flag
+from app.models.flag_version import FlagVersion
+from app.models.targeting_rule import TargetingRule
 from app.schemas.flags import FlagCreate, FlagUpdate
+from app.services.history_service import flag_configuration, record_flag_change
 
 
 def create_flag(db: Session, payload: FlagCreate, created_by: int) -> Flag:
@@ -26,6 +31,8 @@ def create_flag(db: Session, payload: FlagCreate, created_by: int) -> Flag:
     flag = Flag(**payload.model_dump(), created_by=created_by)
     db.add(flag)
     try:
+        db.flush()
+        record_flag_change(db, flag, created_by, "flag.created")
         db.commit()
     except IntegrityError as error:
         db.rollback()
@@ -47,8 +54,11 @@ def get_flag(db: Session, flag_id: int) -> Flag:
     return flag
 
 
-def update_flag(db: Session, flag_id: int, payload: FlagUpdate) -> Flag:
+def update_flag(
+    db: Session, flag_id: int, payload: FlagUpdate, updated_by: int
+) -> Flag:
     flag = get_flag(db, flag_id)
+    before_value = flag_configuration(flag)
     updates = payload.model_dump(exclude_unset=True)
     values: dict[str, Any] = {
         "key": flag.key,
@@ -56,6 +66,7 @@ def update_flag(db: Session, flag_id: int, payload: FlagUpdate) -> Flag:
         "default_value": flag.default_value,
         "environment_id": flag.environment_id,
         "enabled": flag.enabled,
+        "rollout_percentage": flag.rollout_percentage,
         "description": flag.description,
     }
     values.update(updates)
@@ -79,6 +90,9 @@ def update_flag(db: Session, flag_id: int, payload: FlagUpdate) -> Flag:
         setattr(flag, field, value)
     flag.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
     try:
+        record_flag_change(
+            db, flag, updated_by, "flag.updated", before_value=before_value
+        )
         db.commit()
     except IntegrityError as error:
         db.rollback()
@@ -89,9 +103,25 @@ def update_flag(db: Session, flag_id: int, payload: FlagUpdate) -> Flag:
     return flag
 
 
-def delete_flag(db: Session, flag_id: int) -> None:
-    get_flag(db, flag_id)
+def delete_flag(db: Session, flag_id: int, deleted_by: int) -> None:
+    flag = get_flag(db, flag_id)
     try:
+        record_flag_change(
+            db,
+            flag,
+            deleted_by,
+            "flag.deleted",
+            before_value=flag_configuration(flag),
+        )
+        db.flush()
+        db.execute(
+            update(AuditLog)
+            .where(AuditLog.flag_id == flag_id)
+            .values(flag_id=None)
+        )
+        db.execute(delete(FlagVersion).where(FlagVersion.flag_id == flag_id))
+        db.execute(delete(TargetingRule).where(TargetingRule.flag_id == flag_id))
+        db.execute(delete(EvaluationStat).where(EvaluationStat.flag_id == flag_id))
         db.execute(delete(Flag).where(Flag.id == flag_id))
         db.commit()
     except IntegrityError as error:

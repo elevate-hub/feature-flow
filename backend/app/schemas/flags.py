@@ -28,6 +28,7 @@ class FlagCreate(BaseModel):
     default_value: Any
     environment_id: int = Field(gt=0)
     enabled: bool = True
+    rollout_percentage: int = Field(default=0, ge=0, le=100)
     description: str | None = None
 
     @model_validator(mode="after")
@@ -45,6 +46,7 @@ class FlagUpdate(BaseModel):
     default_value: Any = None
     environment_id: int | None = Field(default=None, gt=0)
     enabled: bool | None = None
+    rollout_percentage: int | None = Field(default=None, ge=0, le=100)
     description: str | None = None
 
     @model_validator(mode="after")
@@ -67,6 +69,7 @@ class FlagResponse(BaseModel):
     type: FlagType
     default_value: Any
     enabled: bool
+    rollout_percentage: int
     description: str | None
     environment_id: int
     created_at: datetime

@@ -19,3 +19,6 @@ class UserGroup(Base):
     memberships = relationship(
         "UserGroupMembership", back_populates="group"
     )
+    external_memberships = relationship(
+        "ExternalUserGroupMembership", back_populates="group"
+    )

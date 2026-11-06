@@ -6,11 +6,13 @@ import { Notice } from "./WorkspaceLayout";
 export function FlagForm({
   environments,
   initial,
+  defaultEnvironmentId,
   onSubmit,
   onCancel,
 }: {
   environments: Environment[];
   initial?: FeatureFlag;
+  defaultEnvironmentId?: number;
   onSubmit: (payload: FlagPayload) => Promise<void>;
   onCancel: () => void;
 }) {
@@ -20,9 +22,14 @@ export function FlagForm({
     initial ? JSON.stringify(initial.default_value, null, 2) : "false",
   );
   const [environmentId, setEnvironmentId] = useState(
-    initial?.environment_id ? String(initial.environment_id) : "",
+    initial?.environment_id
+      ? String(initial.environment_id)
+      : defaultEnvironmentId
+        ? String(defaultEnvironmentId)
+        : "",
   );
   const [enabled, setEnabled] = useState(initial?.enabled ?? true);
+  const [rolloutPercentage, setRolloutPercentage] = useState(initial?.rollout_percentage ?? 0);
   const [description, setDescription] = useState(initial?.description ?? "");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -55,6 +62,7 @@ export function FlagForm({
         default_value: defaultValue,
         environment_id: Number(environmentId),
         enabled,
+        rollout_percentage: rolloutPercentage,
         description: description.trim() || null,
       });
     } catch (cause) {
@@ -91,6 +99,9 @@ export function FlagForm({
             )}
           </label>
           <label>Description<textarea value={description} onChange={(event) => setDescription(event.target.value)} rows={3} placeholder="What does this flag control?" /></label>
+          <label className="rollout-field">Percentage rollout <strong>{rolloutPercentage}%</strong>
+            <input type="range" min="0" max="100" step="1" value={rolloutPercentage} onChange={(event) => setRolloutPercentage(Number(event.target.value))} />
+          </label>
           <label className="checkbox-field"><input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} /> Enabled</label>
           <div className="modal-actions"><button type="button" className="button secondary" onClick={onCancel}>Cancel</button><button type="submit" className="button primary" disabled={saving || !environments.length}>{saving ? "Saving…" : initial ? "Save changes" : "Create flag"}</button></div>
         </form>

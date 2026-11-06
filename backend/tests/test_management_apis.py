@@ -163,61 +163,24 @@ class ManagementApiTests(unittest.TestCase):
                     )
                     self.assertEqual(response.status_code, 401, response.text)
 
-    def test_regular_user_can_access_all_management_routes(self) -> None:
-        environment = self.client.post(
-            "/api/v1/environments",
-            headers=self.user_headers,
-            json={"name": "user-managed", "description": "Created by user"},
-        )
-        self.assertEqual(environment.status_code, 201, environment.text)
-        environment_id = environment.json()["id"]
-
-        created_flag = self.client.post(
-            "/api/v1/flags",
-            headers=self.user_headers,
-            json={
-                "key": "user_managed_flag",
-                "type": "boolean",
-                "default_value": True,
-                "environment_id": environment_id,
-            },
-        )
-        self.assertEqual(created_flag.status_code, 201, created_flag.text)
-        flag_id = created_flag.json()["id"]
-
+    def test_regular_user_cannot_access_configuration_apis(self) -> None:
         requests = [
-            ("get", "/api/v1/flags", {}),
-            ("get", f"/api/v1/flags/{flag_id}", {}),
-            ("put", f"/api/v1/flags/{flag_id}", {"json": {"enabled": False}}),
+            ("post", "/api/v1/environments", {"json": {"name": "user-managed"}}),
             ("get", "/api/v1/environments", {}),
-            ("get", f"/api/v1/environments/{environment_id}", {}),
-            (
-                "put",
-                f"/api/v1/environments/{environment_id}",
-                {"json": {"description": "Updated by user"}},
-            ),
-            ("get", f"/api/v1/environments/{environment_id}/flags", {}),
+            ("post", "/api/v1/flags", {"json": {}}),
+            ("get", "/api/v1/flags", {}),
+            ("get", "/api/v1/user-groups", {}),
+            ("post", "/api/v1/user-groups", {"json": {"name": "not-allowed"}}),
+            ("get", "/api/v1/analytics", {}),
+            ("get", "/api/v1/activity", {}),
+            ("get", "/api/v1/flags/1/targeting-rules", {}),
         ]
         for method, path, kwargs in requests:
             with self.subTest(method=method, path=path):
                 response = getattr(self.client, method)(
                     path, headers=self.user_headers, **kwargs
                 )
-                self.assertIn(response.status_code, (200, 201), response.text)
-
-        self.assertEqual(
-            self.client.delete(
-                f"/api/v1/flags/{flag_id}", headers=self.user_headers
-            ).status_code,
-            204,
-        )
-        self.assertEqual(
-            self.client.delete(
-                f"/api/v1/environments/{environment_id}",
-                headers=self.user_headers,
-            ).status_code,
-            204,
-        )
+                self.assertEqual(response.status_code, 403, response.text)
 
     def test_admin_can_access_management_routes_and_registration_stays_user_only(
         self,
@@ -291,17 +254,24 @@ class ManagementApiTests(unittest.TestCase):
             ).status_code,
             200,
         )
-        self.assertEqual(
-            self.client.delete(
-                f"/api/v1/flags/{flag_id}", headers=self.headers
-            ).status_code,
-            204,
+        deleted_flag = self.client.delete(
+            f"/api/v1/flags/{flag_id}", headers=self.headers
+        )
+        self.assertEqual(deleted_flag.status_code, 204, deleted_flag.text)
+        activity = self.client.get("/api/v1/activity", headers=self.headers)
+        self.assertEqual(activity.status_code, 200, activity.text)
+        self.assertTrue(
+            any(
+                item["action"] == "flag.deleted"
+                and item["flag_key"] == "admin_flag"
+                for item in activity.json()
+            )
+        )
+        deleted_environment = self.client.delete(
+            f"/api/v1/environments/{environment_id}", headers=self.headers
         )
         self.assertEqual(
-            self.client.delete(
-                f"/api/v1/environments/{environment_id}", headers=self.headers
-            ).status_code,
-            204,
+            deleted_environment.status_code, 204, deleted_environment.text
         )
 
     def test_flag_and_environment_crud_and_relationship(self) -> None:
@@ -365,17 +335,15 @@ class ManagementApiTests(unittest.TestCase):
             ).status_code,
             409,
         )
-        self.assertEqual(
-            self.client.delete(
-                f"/api/v1/flags/{flag_id}", headers=self.headers
-            ).status_code,
-            204,
+        deleted_flag = self.client.delete(
+            f"/api/v1/flags/{flag_id}", headers=self.headers
+        )
+        self.assertEqual(deleted_flag.status_code, 204, deleted_flag.text)
+        deleted_environment = self.client.delete(
+            f"/api/v1/environments/{environment_id}", headers=self.headers
         )
         self.assertEqual(
-            self.client.delete(
-                f"/api/v1/environments/{environment_id}", headers=self.headers
-            ).status_code,
-            204,
+            deleted_environment.status_code, 204, deleted_environment.text
         )
 
     def test_duplicates_invalid_types_and_missing_resources(self) -> None:
